@@ -39,8 +39,7 @@
   "
   (:require [cljs.compiler :as comp]
             [clojure.java.io :as io]
-            [clojure.string :as string]
-            [pomegranate :as pomegranate])
+            [clojure.string :as string])
   (:import java.io.File
            java.io.BufferedInputStream
            java.net.URL
@@ -54,10 +53,6 @@
            com.google.javascript.jscomp.Result
            com.google.javascript.jscomp.JSError
            com.google.javascript.jscomp.CommandLineRunner))
-
-(defn pom-add-classpath
-  [cp]
-  (pomegranate/add-classpath cp))
 
 (def name-chars (map char (concat (range 48 57) (range 65 90) (range 97 122))))
 
@@ -871,12 +866,10 @@
   "Given a source which can be compiled, produce runnable JavaScript."
   [source opts]
   (comp/reset-namespaces!)
-  (let [opts (if (= java.lang.String (type opts))
+    (let [opts (if (= java.lang.String (type opts))
                  (read-string opts)
-                 opts)]
-    (if (not (nil? (:add-classpath opts)))
-      (pom-add-classpath (:add-classpath opts)))
-    (let [ups-deps (get-upstream-deps)
+                 opts)
+          ups-deps (get-upstream-deps)
           all-opts (assoc opts
                      :ups-libs (:libs ups-deps)
                      :ups-foreign-libs (:foreign-libs ups-deps)
@@ -899,7 +892,7 @@
                  (apply optimize all-opts)
                  (add-header all-opts)
                  (output-one-file all-opts))
-          (apply output-unoptimized all-opts js-sources)))))))
+            (apply output-unoptimized all-opts js-sources))))))
 
 (comment
 
