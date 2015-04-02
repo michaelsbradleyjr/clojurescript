@@ -567,16 +567,25 @@ should contain the source for the given namespace name."
           required-cljs
           inputs)))))
 
-(defn preamble-from-paths [paths]
+(defn *amble-from-paths [which-missing paths]
   (when-let [missing (seq (remove io/resource paths))]
-    (ana/warning :preamble-missing @env/*compiler* {:missing (sort missing)}))
+    (ana/warning which-missing @env/*compiler* {:missing (sort missing)}))
   (let [resources (remove nil? (map io/resource paths))]
     (str (string/join "\n" (map slurp resources)) "\n")))
+
+(defn preamble-from-paths [paths]
+  (*amble-from-paths :preamble-missing paths))
+
+(defn postamble-from-paths [paths]
+  (*amble-from-paths :postamble-missing paths))
 
 (defn make-preamble [{:keys [target preamble hashbang]}]
   (str (when (and (= :nodejs target) (not (false? hashbang)))
          (str "#!" (or hashbang "/usr/bin/env node") "\n"))
        (when preamble (preamble-from-paths preamble))))
+
+(defn make-postamble [{:keys [postamble]}]
+  (str (when postamble (postamble-from-paths postamble))))
 
 (comment
   ;; add dependencies to literal js
@@ -780,8 +789,8 @@ should contain the source for the given namespace name."
   "Given a JSON parsed Google Closure JavaScript to JavaScript source map,
    the entire list of original IJavaScript sources output a merged JavaScript
    to ClojureScript source map file with the given file name. opts should
-   supply :preamble-line-count and :foreign-deps-line-count if they are
-   relevant."
+   supply :preamble-line-count, :postamble-line-count and
+   :foreign-deps-line-count if they are relevant."
   [sm-json sources name opts]
   (let [closure-source-map (sm/decode-reverse sm-json)]
     (loop [sources (seq sources)
@@ -822,8 +831,10 @@ should contain the source for the given namespace name."
           (sm/encode merged
             {:preamble-line-count (+ (:preamble-line-count opts 0)
                                      (:foreign-deps-line-count opts 0))
+             :postamble-line-count (:postamble-line-count opts 0)
              :lines (+ (:lineCount sm-json)
                        (:preamble-line-count opts 0)
+                       (:postamble-line-count opts 0)
                        (:foreign-deps-line-count opts 0)
                        2)
              :file name
@@ -910,7 +921,9 @@ should contain the source for the given namespace name."
               (assoc opts
                 :preamble-line-count
                 (+ (- (count (.split #"\r?\n" (make-preamble opts) -1)) 1)
-                   (if (:output-wrapper opts) 1 0))))))
+                   (if (:output-wrapper opts) 1 0))
+                :postamble-line-count
+                (- (count (.split #"\r?\n" (make-postamble opts) -1)) 1)))))
         source)
       (report-failure result))))
 
@@ -1080,6 +1093,10 @@ should contain the source for the given namespace name."
                  (+ (- (count (.split #"\r?\n" (make-preamble opts) -1)) 1)
                     (if (:output-wrapper opts) 1 0))
                  0)
+               :postamble-line-count
+               (if (= name :cljs-base)
+                 (- (count (.split #"\r?\n" (make-postamble opts) -1)) 1)
+                 0)
                :foreign-deps-line-count
                (if fdeps-str
                  (- (count (.split #"\r?\n" fdeps-str -1)) 1)
@@ -1224,6 +1241,9 @@ should contain the source for the given namespace name."
 
 (defn add-header [opts js]
   (str (make-preamble opts) js))
+
+(defn add-footer [opts js]
+  (str js (make-postamble opts)))
 
 (defn foreign-deps-str [opts sources]
   (letfn [(to-js-str [ijs]
@@ -1451,9 +1471,10 @@ should contain the source for the given namespace name."
                                  (apply optimize all-opts
                                    (remove foreign-source? js-sources)))
                                (add-wrapper all-opts)
-                               (add-source-map-link all-opts)
                                (str fdeps-str)
                                (add-header all-opts)
+                               (add-footer all-opts)
+                               (add-source-map-link all-opts)
                                (output-one-file all-opts)))))
                        (apply output-unoptimized all-opts js-sources))]
              ;; emit Node.js bootstrap script for :none & :whitespace optimizations

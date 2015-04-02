@@ -4,7 +4,7 @@
   (:use clojure.test))
 
 (deftest test-make-preamble
-  (testing "no options"
+  (testing "no pre option"
     (is (= "" (make-preamble {}))))
   (testing "nodejs"
     (testing "with default hashbang"
@@ -28,3 +28,11 @@
     (is (= "var preamble1 = require(\"preamble1\");\nvar preamble2 = require(\"preamble2\");\n"
            (make-preamble {:preamble ["cljs/preamble1.js"
                                       "cljs/preamble2.js"]})))))
+
+(deftest test-make-postamble
+  (testing "no post option"
+    (is (= "" (make-postamble {}))))
+  (testing "postamble"
+    (is (= "var postamble1 = require(\"postamble1\");\nvar postamble2 = require(\"postamble2\");\n"
+           (make-postamble {:postamble ["cljs/postamble1.js"
+                                        "cljs/postamble2.js"]})))))

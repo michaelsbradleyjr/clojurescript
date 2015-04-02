@@ -46,6 +46,7 @@
 
 (def ^:dynamic *cljs-warnings*
   {:preamble-missing true
+   :postamble-missing true
    :unprovided true
    :undeclared-var true
    :undeclared-ns true
@@ -98,6 +99,10 @@
 (defmethod error-message :preamble-missing
   [warning-type info]
   (str "Preamble resource file not found: " (string/join " " (:missing info))))
+
+(defmethod error-message :postamble-missing
+  [warning-type info]
+  (str "Postamble resource file not found: " (string/join " " (:missing info))))
 
 (defmethod error-message :unprovided
   [warning-type info]
